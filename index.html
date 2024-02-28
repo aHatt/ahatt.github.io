@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Outline Processor</title>
+  <style>
+    .indent {
+      margin-left: 20px;
+      display: inline-block;
+    }
+
+    .timeline {
+      display: flex;
+      align-items: center;
+      margin-left: 10px;
+      margin-top: 1px;
+    }
+
+    .timeline-line {
+      height: 10px;
+      background-color: #A08CF3;
+      position: relative;
+      flex-grow: 1;
+    }
+
+    .handle,
+    .handle-end {
+      width: 10px;
+      height: 10px;
+      background-color: #A08CF3;
+      border-radius: 50%;
+      position: absolute;
+      cursor: ew-resize;
+      z-index: 2;
+      top: 0;
+    }
+
+    .handle {
+      left: -5px;
+    }
+
+    .handle-end {
+      right: -5px;
+    }
+
+    input {
+      border: 1px solid transparent;
+      font-weight: bold;
+    }
+
+    button {
+      width: 16px;
+      height 16px;
+      background-color: #EfEfEf;
+      color: #666;
+      border: none;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 3px;
+    }
+
+    button.add-sub-item {
+      background-color: #EfEfEf;
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <div v-for="(item, index) in outlineItems" :key="index" :class="{ 'indent': item.isSubItem }">
+    <div style="display: flex; align-items: center;">
+      <input type="text" v-model="item.text" placeholder="Enter text">
+      <button @click="removeItem(index)">-</button>
+      <div>
+        <div class="timeline" :id="'timeline-' + index">
+          <div class="timeline-line" :style="{ width: item.timelineLength + 'px', marginLeft: item.timelineStart + 'px' }">
+            <div class="handle" @mousedown="startDrag($event, index, null, item, null, 'start')"></div>
+            <div class="handle-end" @mousedown="startDrag($event, index, null, item, null, 'end')"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-for="(subItem, subIndex) in item.subItems" :key="subIndex" class="indent" style="display: flex; align-items: center;">
+      <input type="text" v-model="subItem.text" placeholder="Enter subtext">
+      <button @click="removeSubItem(index, subIndex)">-</button>
+      <div>
+        <div class="timeline" :id="'subItemTimeline-' + index + '-' + subIndex">
+          <div class="timeline-line" :style="{ width: subItem.timelineLength + 'px', marginLeft: subItem.timelineStart + 'px' }">
+            <div class="handle" @mousedown="startDrag($event, index, subIndex, item, subItem, 'start')"></div>
+            <div class="handle-end" @mousedown="startDrag($event, index, subIndex, item, subItem, 'end')"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="indent" style="display: inline-block;">
+      <button class="add-sub-item" @click="addSubItem(index)">></button>
+    </div>
+  </div>
+  <button @click="addItem">+</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/vue@2"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  new Vue({
+    el: '#app',
+    data: {
+      outlineItems: [{ text: '', subItems: [], isSubItem: false, timelineLength: 0, timelineStart: 0 }]
+    },
+    methods: {
+      addItem() {
+        this.outlineItems.push({ text: '', subItems: [], isSubItem: false, timelineLength: 0, timelineStart: 0 });
+      },
+      removeItem(index) {
+        this.outlineItems.splice(index, 1);
+      },
+      addSubItem(index) {
+        this.outlineItems[index].subItems.push({ text: '', isSubItem: true, timelineLength: 0, timelineStart: 0 });
+      },
+      removeSubItem(parentIndex, subIndex) {
+        this.outlineItems[parentIndex].subItems.splice(subIndex, 1);
+      },
+      startDrag(e, index, subIndex, item, subItem, type) {
+        e.preventDefault();
+        let isDragging = false;
+        let initialX = e.clientX;
+
+        const handle = document.querySelector(subItem ? `#subItemTimeline-${index}-${subIndex} .handle` : `#timeline-${index} .handle`);
+        const handleEnd = document.querySelector(subItem ? `#subItemTimeline-${index}-${subIndex} .handle-end` : `#timeline-${index} .handle-end`);
+        
+        document.addEventListener('mousemove', handleDrag);
+        document.addEventListener('mouseup', handleMouseUp);
+
+        function handleDrag(e) {
+          if (isDragging) {
+            e.preventDefault();
+            const mouseX = e.clientX;
+            const deltaX = mouseX - initialX;
+            initialX = mouseX;
+
+            const timeline = subItem ? subItem : item;
+
+            if (type === 'start') {
+              timeline.timelineLength -= deltaX;
+              timeline.timelineStart += deltaX;
+              if (timeline.timelineLength < 0) {
+                timeline.timelineLength = 0;
+              }
+            } else {
+              timeline.timelineLength += deltaX;
+              if (timeline.timelineLength < 0) {
+                timeline.timelineLength = 0;
+              }
+            }
+
+            Vue.set(timeline, 'timelineLength', timeline.timelineLength);
+            Vue.set(timeline, 'timelineStart', timeline.timelineStart);
+          }
+        }
+
+        function handleMouseUp() {
+          isDragging = false;
+          document.removeEventListener('mousemove', handleDrag);
+          document.removeEventListener('mouseup', handleMouseUp);
+        }
+
+        isDragging = true;
+      },
+    }
+  });
+});
+</script>
+
+</body>
+</html>
